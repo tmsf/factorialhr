@@ -3,7 +3,7 @@ import logging
 import os
 import pickle
 import random
-from datetime import date
+from datetime import date, timedelta, datetime
 from http import client as http_client
 
 import requests
@@ -332,6 +332,60 @@ class FactorialClient:
                     start_hour, start_minute,
                     end_hour, end_minute))
 
+    def clock_in(self, work_loader: AbstractWork, day, period_id):
+
+        add_worked_period_kwargs = {
+            'year': day.year,
+            'month': day.month,
+            'day': day.day,
+            'period_id': period_id,
+            # Dynamic over loop fields
+            'start_hour': 0,
+            'start_minute': 0,
+            'end_hour': 0,
+            'end_minute': 0
+        }
+        worked_periods = self.generate_worked_periods(
+            work_loader.get_start_hour(),
+            work_loader.get_end_hour(),
+            work_loader.get_minutes_variation(),
+            work_loader.get_breaks()
+        )
+        for worked_period in worked_periods:
+            start_hour = worked_period.get('start_hour')
+            start_minute = worked_period.get('start_minute')
+            end_hour = worked_period.get('end_hour')
+            end_minute = worked_period.get('end_minute')
+            add_worked_period_kwargs.update({
+                'start_hour': start_hour,
+                'start_minute': start_minute,
+                'end_hour': end_hour,
+                'end_minute': end_minute,
+            })
+            print('just before clocking in', add_worked_period_kwargs)
+            if self.add_worked_period(**add_worked_period_kwargs):
+                LOGGER.info('Saved worked period for the day {0:s} between {1:02d}:{2:02d} - {3:02d}:{4:02d}'.format(
+                    day.isoformat(),
+                    start_hour, start_minute,
+                    end_hour, end_minute))
+
+
+    def clock_in_until_yesterday(self, work_loader: AbstractWork, period_id, my_shift, working_days_until_yesterday ):
+        days_to_update = []
+        days_to_fix = []
+        for working_day in working_days_until_yesterday:
+            day_shifts = list(filter(lambda shift: shift['day'] == working_day['day'], my_shift))
+            # if there's more than 2 shifts, I've clocked in correctly
+            if len(day_shifts) == 1: 
+                days_to_fix.append(working_day)
+            if len(day_shifts) == 0:
+                days_to_update.append(working_day)
+
+        # clock in all the days to update
+        for day in days_to_update:
+            self.clock_in(work_loader, datetime.strptime(day['date'], '%Y-%m-%d').date(), period_id)   
+
+
     def logout(self):
         """Logout invalidating that session, invalidating the cookie _factorial_session
 
@@ -427,6 +481,11 @@ class FactorialClient:
                 self.mates.append(current_user)
 
         self.load_employees()
+
+    def get_period_id(self, year, month):
+        period = self.get_period(year, month)
+        period_id = period[0]['id']
+        return period_id
 
     def get_period(self, year, month):
         """Get the info a period
@@ -577,7 +636,13 @@ class FactorialClient:
             response = [day for day in response if day.get(param) == value]
         return response
 
-    def add_worked_period(self, year, month, day, start_hour, start_minute, end_hour, end_minute):
+    def get_calendar_until_yesterday(self, year, month, **kwargs):
+        yesterday = date.today() + timedelta(days=-1)
+        working_days = self.get_calendar(year, month, **kwargs)
+        working_days_until_yesterday = list(filter(lambda holiday: datetime.strptime(holiday['date'], '%Y-%m-%d').date() <= yesterday, working_days))
+        return working_days_until_yesterday
+
+    def add_worked_period(self, year, month, day, start_hour, start_minute, end_hour, end_minute, period_id):
         """Add the period as worked
 
         Example to create a worked period for the day 2019-07-31 from 7:30 to 15:30
@@ -597,16 +662,8 @@ class FactorialClient:
         :param end_minute: integer
         :return bool: correctly saved
         """
-        # Check if are vacations
-        calendar = self.get_calendar(year=year, month=month, is_leave=True)
         formatted_date = f'{year:04d}-{month:02d}-{day:02d}'
-        for calendar_day in calendar:
-            if calendar_day.get('date') == formatted_date:
-                LOGGER.info(f"Can't sign today {formatted_date}, because are vacations")
-                return False
-        period = self.get_period(year=year, month=month)
-        current_period = period[0]
-        period_id = current_period['id']
+        
         payload = {
             'clock_in': f'{start_hour}:{start_minute}',
             'clock_out': f'{end_hour}:{end_minute}',
