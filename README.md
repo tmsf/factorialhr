@@ -2,6 +2,15 @@
 Python adapter to use the factorialhr api and automate
 sign tasks.
 
+## Setup
+
+You need to have python3 and pip3 installed in your machine. Then:
+
+```
+pip3 install virtualenv
+virtualenv -p /usr/local/bin/python3 .virtualenv
+```
+
 ## Configure settings file
 Configuring the settings file we can use the `main.py`
 to automatically sign the work of today (default) 
@@ -55,6 +64,14 @@ By default the name of the settings file is
     ]
   }
 }
+```
+
+## Clock in until yesterday
+
+To clock in from last month until today, you just run:
+
+```
+source clock_in_until_yesterday.sh
 ```
 
 ## Automatically sign today

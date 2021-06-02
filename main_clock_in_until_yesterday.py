@@ -8,8 +8,10 @@ settings_file = 'factorial_settings.json'
 
 if __name__ == '__main__':
     try:
-        month = 3
-        year = 2021
+        # Get last month and year
+        now = datetime.now()
+        month = now.month - 1 if now.month > 1 else 12
+        year = now.year if month < 12 else now.year -1
         
         # Set the factorial client
         client = FactorialClient.load_from_settings(JsonCredentials(settings_file))
