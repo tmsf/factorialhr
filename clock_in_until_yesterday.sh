@@ -2,6 +2,6 @@
 mv factorial_settings.json factorial_settings.example.json
 cp factorial_settings.mine.json factorial_settings.json
 
-source venv/bin/activate
+source .virtualenv/bin/activate
 python3 main_clock_in_until_yesterday.py
 mv factorial_settings.example.json factorial_settings.json
