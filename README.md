@@ -11,6 +11,10 @@ pip3 install virtualenv
 virtualenv -p /usr/local/bin/python3 .virtualenv
 ```
 
+```sh
+pip3 install -r  requirements.txt
+```
+
 ## Configure settings file
 Configuring the settings file we can use the `main.py`
 to automatically sign the work of today (default) 
